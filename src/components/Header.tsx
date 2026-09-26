@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Building2, ChevronDown, Plus, Check, Menu } from 'lucide-react';
+import { Building2, ChevronDown, Plus, Check, Menu, LogOut } from 'lucide-react';
 import type { Workspace } from '../types/api';
 
 interface HeaderProps {
@@ -12,6 +12,8 @@ interface HeaderProps {
   onOpenMailSimulator: () => void;
   onOpenCreateProject: () => void;
   onOpenMobileSidebar?: () => void;
+  adminEmail?: string;
+  onLogout?: () => void;
 }
 
 export const Header = ({
@@ -23,6 +25,8 @@ export const Header = ({
   onToggleSandbox,
   onOpenCreateProject,
   onOpenMobileSidebar,
+  adminEmail,
+  onLogout,
 }: HeaderProps) => {
   const [openWsDropdown, setOpenWsDropdown] = useState(false);
 
@@ -146,6 +150,19 @@ export const Header = ({
           <span className="hidden sm:inline">New Project</span>
           <span className="sm:hidden">New</span>
         </button>
+
+        {/* Lock / Logout Button */}
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            title={adminEmail ? `Logged in as ${adminEmail}. Click to lock panel.` : 'Lock panel'}
+            className="h-9 sm:h-10 px-3 sm:px-3.5 bg-white hover:bg-[#FEE2E2] hover:text-[#EF4444] border border-[#EAEEF4] hover:border-[#FCA5A5] text-[#64748B] text-xs font-bold rounded-full shadow-2xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+          >
+            <LogOut className="size-3.5" />
+            <span className="hidden md:inline">Lock</span>
+          </button>
+        )}
       </div>
     </header>
   );
