@@ -30,7 +30,8 @@ export const initialProjects: Project[] = [
       pow_challenge: true,
       vip_ad_rewards: true,
       custom_prefixes: false
-    }
+    },
+    services: ['srv_tempmail_rust', 'srv_push_broker']
   },
   {
     slug: 'web',
@@ -48,7 +49,8 @@ export const initialProjects: Project[] = [
       pow_challenge: true,
       vip_ad_rewards: false,
       custom_prefixes: true
-    }
+    },
+    services: ['srv_tempmail_rust']
   },
   {
     slug: 'bot',
@@ -66,7 +68,8 @@ export const initialProjects: Project[] = [
       pow_challenge: false,
       vip_ad_rewards: false,
       custom_prefixes: true
-    }
+    },
+    services: ['srv_tempmail_rust', 'srv_webhook_relay']
   }
 ];
 

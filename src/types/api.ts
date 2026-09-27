@@ -102,6 +102,7 @@ export interface Project {
   active_version: 'v1' | 'v2';
   v1_sunset_days: number;
   components: ComponentSwitches;
+  services?: string[];
   created_at?: string;
   updated_at?: string;
 }

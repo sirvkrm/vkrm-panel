@@ -13,14 +13,22 @@ import {
   ChevronUp,
   Play,
   Terminal,
-  Sparkles
+  Sparkles,
+  Cpu,
+  Smartphone,
+  Mail,
+  Bell,
+  Server,
+  CheckCircle2
 } from 'lucide-react';
 import type { Project, Domain, EndpointItem, ComponentSwitchKey } from '../types/api';
+import type { WorkspaceService } from '../data/servicesData';
 import { endpointCatalog } from '../data/mockData';
 
 interface ProjectDetailViewProps {
   project: Project;
   domains: Domain[];
+  services?: WorkspaceService[];
   onBack: () => void;
   onUpdateProject: (p: Project) => void;
   onDeleteProject: (slug: string) => void;
@@ -37,12 +45,24 @@ interface TestResult {
 export const ProjectDetailView = ({
   project,
   domains,
+  services = [],
   onBack,
   onUpdateProject,
   onDeleteProject,
 }: ProjectDetailViewProps) => {
-  const [subTab, setSubTab] = useState<'switchboard' | 'domains' | 'config'>('switchboard');
+  const [subTab, setSubTab] = useState<'switchboard' | 'services' | 'domains' | 'config'>('switchboard');
   const [copiedUrl, setCopiedUrl] = useState(false);
+
+  const toggleProjectService = (srvId: string) => {
+    const currentServices = project.services || ['srv_tempmail_rust'];
+    const nextServices = currentServices.includes(srvId)
+      ? currentServices.filter((id) => id !== srvId)
+      : [...currentServices, srvId];
+    onUpdateProject({
+      ...project,
+      services: nextServices,
+    });
+  };
 
   // Track which building block cards have their API list expanded
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
@@ -384,7 +404,19 @@ export const ProjectDetailView = ({
         </div>
 
         {/* Sub-Navigation Pill Bar */}
-        <div className="bg-[#F3F5F8] p-1.5 rounded-2xl flex flex-wrap sm:flex-nowrap items-center gap-1 max-w-lg">
+        <div className="bg-[#F3F5F8] p-1.5 rounded-2xl flex flex-wrap sm:flex-nowrap items-center gap-1 max-w-xl">
+          <button
+            type="button"
+            onClick={() => setSubTab('services')}
+            className={`flex-1 py-2.5 px-3 sm:px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer whitespace-nowrap ${
+              subTab === 'services'
+                ? 'bg-white text-[#0066FF] shadow-sm font-extrabold'
+                : 'text-[#64748B] hover:text-[#111827]'
+            }`}
+          >
+            <Cpu className="size-3.5 shrink-0" />
+            <span>Services ({(project.services || ['srv_tempmail_rust']).length})</span>
+          </button>
           <button
             type="button"
             onClick={() => setSubTab('switchboard')}
@@ -687,6 +719,119 @@ export const ProjectDetailView = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Sub-Tab: Attached Workspace Services */}
+      {subTab === 'services' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-[24px] sm:rounded-[28px] p-6 sm:p-7 border border-[#EAEEF4] shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#F1F5F9]">
+              <div>
+                <h3 className="text-lg font-extrabold text-[#111827]">
+                  Attached Workspace Services
+                </h3>
+                <p className="text-xs text-[#64748B] mt-0.5">
+                  Enable or disable service execution for project <code className="font-mono text-[#0066FF] font-bold">/{project.slug}</code>
+                </p>
+              </div>
+              <span className="text-xs font-bold text-[#0066FF] bg-[#EEF4FF] px-3 py-1 rounded-full self-start sm:self-auto">
+                {(project.services || ['srv_tempmail_rust']).length} of {services.length} Services Active
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              {services.map((srv) => {
+                const isAttached = (project.services || ['srv_tempmail_rust']).includes(srv.id);
+
+                return (
+                  <div
+                    key={srv.id}
+                    className={`p-5 rounded-2xl border transition flex flex-col justify-between ${
+                      isAttached
+                        ? 'border-[#0066FF]/40 bg-[#0066FF]/4 shadow-2xs'
+                        : 'border-[#EAEEF4] bg-[#F8FAFC]'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`size-11 rounded-xl flex items-center justify-center text-white shadow-xs ${
+                              isAttached ? 'bg-[#0066FF]' : 'bg-[#94A3B8]'
+                            }`}
+                          >
+                            {srv.id.includes('mail') ? (
+                              <Mail className="size-5" />
+                            ) : srv.id.includes('sms') ? (
+                              <Smartphone className="size-5" />
+                            ) : srv.id.includes('push') ? (
+                              <Bell className="size-5" />
+                            ) : (
+                              <Server className="size-5" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-sm font-extrabold text-[#111827]">
+                              {srv.name}
+                            </div>
+                            <div className="text-[11px] font-mono text-[#64748B]">
+                              {srv.version}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => toggleProjectService(srv.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-1.5 ${
+                            isAttached
+                              ? 'bg-[#10B981] text-white shadow-xs'
+                              : 'bg-[#E2E8F0] text-[#64748B] hover:bg-[#CBD5E1]'
+                          }`}
+                        >
+                          <CheckCircle2 className="size-3.5" />
+                          <span>{isAttached ? 'Attached' : 'Attach'}</span>
+                        </button>
+                      </div>
+
+                      <p className="text-xs text-[#64748B] leading-relaxed mb-4">
+                        {srv.description}
+                      </p>
+
+                      {/* Subsystem & Endpoints Preview */}
+                      <div className="space-y-2 pt-3 border-t border-[#EAEEF4]/70">
+                        <div className="text-[10px] uppercase font-bold tracking-wider text-[#94A3B8]">
+                          Project Subsystems & Endpoints
+                        </div>
+                        <div className="space-y-1.5">
+                          {srv.subsystems.slice(0, 2).map((sub) => (
+                            <div
+                              key={sub.id}
+                              className="p-2.5 rounded-xl bg-white border border-[#EAEEF4] flex items-center justify-between text-xs"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className={`size-2 rounded-full ${isAttached ? 'bg-[#10B981]' : 'bg-[#CBD5E1]'}`} />
+                                <span className="font-bold text-[#111827]">{sub.name}</span>
+                              </div>
+                              <span className="font-mono text-[10px] text-[#0066FF] font-bold">
+                                {sub.endpoints.length} routes
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-[#EAEEF4]/70 flex items-center justify-between text-[11px] text-[#64748B]">
+                      <span>Internal: <code className="font-mono text-[#111827]">{srv.internalUrl}</code></span>
+                      <span className="font-bold text-[#10B981]">{srv.uptime} SLA</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 

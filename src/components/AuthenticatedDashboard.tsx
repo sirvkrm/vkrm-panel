@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import type { NavView } from './Sidebar';
@@ -35,27 +35,71 @@ interface AuthenticatedDashboardProps {
 }
 
 export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDashboardProps) {
-  const [activeView, setActiveView] = useState<NavView>('services');
-  const [selectedProject, setSelectedProject] = useState<Project | null>(initialProjects[0]);
+  const [activeView, setActiveView] = useState<NavView>('projects');
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>(initialWorkspaces);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(initialWorkspaces[0]);
 
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
-  const [domains, setDomains] = useState<Domain[]>(initialDomains);
+  // Persistent Projects State
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      const saved = localStorage.getItem('vkrm_projects_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return initialProjects;
+  });
 
-  // Universal API Services & Deep Controls State
-  const [services, setServices] = useState<WorkspaceService[]>(initialWorkspaceServices);
-  const [selectedServiceId, setSelectedServiceId] = useState<string>(initialWorkspaceServices[0].id);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(() => {
+    try {
+      const saved = localStorage.getItem('vkrm_projects_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.length > 0) return parsed[0];
+      }
+    } catch {}
+    return initialProjects[0];
+  });
+
+  // Persistent Domains State
+  const [domains, setDomains] = useState<Domain[]>(() => {
+    try {
+      const saved = localStorage.getItem('vkrm_domains_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return initialDomains;
+  });
+
+  // Persistent Workspace Services State
+  const [services, setServices] = useState<WorkspaceService[]>(() => {
+    try {
+      const saved = localStorage.getItem('vkrm_services_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return initialWorkspaceServices;
+  });
+
+  const [selectedServiceId, setSelectedServiceId] = useState<string>(
+    initialWorkspaceServices[0].id
+  );
   const [selectedSubsystemId, setSelectedSubsystemId] = useState<string | null>(null);
 
-  // Dual-Mode API Variables & Policies State
-  const [apiVariables, setApiVariables] = useState<ApiVariableItem[]>(initialApiVariables);
+  // Persistent Dual-Mode API Variables State
+  const [apiVariables, setApiVariables] = useState<ApiVariableItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('vkrm_variables_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return initialApiVariables;
+  });
 
-  // Global Programmable Telemetry & Stats State
-  const [programmableMetrics, setProgrammableMetrics] = useState<ProgrammableMetric[]>(
-    initialProgrammableMetrics
-  );
+  // Persistent Global Programmable Metrics State
+  const [programmableMetrics, setProgrammableMetrics] = useState<ProgrammableMetric[]>(() => {
+    try {
+      const saved = localStorage.getItem('vkrm_metrics_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return initialProgrammableMetrics;
+  });
 
   const [sandboxMode, setSandboxMode] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -65,6 +109,37 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isMailSimulatorOpen, setIsMailSimulatorOpen] = useState(false);
+
+  // Sync state changes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('vkrm_projects_v2', JSON.stringify(projects));
+    } catch {}
+  }, [projects]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('vkrm_domains_v2', JSON.stringify(domains));
+    } catch {}
+  }, [domains]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('vkrm_services_v2', JSON.stringify(services));
+    } catch {}
+  }, [services]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('vkrm_variables_v2', JSON.stringify(apiVariables));
+    } catch {}
+  }, [apiVariables]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('vkrm_metrics_v2', JSON.stringify(programmableMetrics));
+    } catch {}
+  }, [programmableMetrics]);
 
   // Active Service Helper
   const currentService =
@@ -109,6 +184,34 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
         )
       );
     }
+  };
+
+  const handleDeleteDomain = (domainId: string) => {
+    setDomains((prev) => prev.filter((d) => d.id !== domainId));
+    setProjects((prev) =>
+      prev.map((p) => ({
+        ...p,
+        assigned_domain_ids: p.assigned_domain_ids.filter((id) => id !== domainId),
+      }))
+    );
+  };
+
+  const handleUpdateDomainProject = (domainId: string, targetProject: string) => {
+    setDomains((prev) =>
+      prev.map((d) => (d.id === domainId ? { ...d, target_project: targetProject } : d))
+    );
+    setProjects((prev) =>
+      prev.map((p) => {
+        const hasDomain = p.assigned_domain_ids.includes(domainId);
+        if (p.slug === targetProject && !hasDomain) {
+          return { ...p, assigned_domain_ids: [...p.assigned_domain_ids, domainId] };
+        }
+        if (p.slug !== targetProject && hasDomain) {
+          return { ...p, assigned_domain_ids: p.assigned_domain_ids.filter((id) => id !== domainId) };
+        }
+        return p;
+      })
+    );
   };
 
   const handleVerifyDNS = (d: Domain) => {
@@ -319,6 +422,7 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
               <ProjectDetailView
                 project={selectedProject}
                 domains={domains}
+                services={services}
                 onBack={() => setSelectedProject(null)}
                 onUpdateProject={handleUpdateProject}
                 onDeleteProject={handleDeleteProject}
@@ -326,8 +430,10 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
             ) : (
               <ProjectsView
                 projects={projects}
+                services={services}
                 onSelectProject={handleSelectProject}
                 onOpenCreateProject={() => setIsCreateProjectOpen(true)}
+                onDeleteProject={handleDeleteProject}
               />
             )
           )}
@@ -339,6 +445,8 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
               projects={projects}
               onOpenAddDomain={() => setIsAddDomainOpen(true)}
               onVerifyDNS={handleVerifyDNS}
+              onDeleteDomain={handleDeleteDomain}
+              onUpdateDomainProject={handleUpdateDomainProject}
               sandboxMode={sandboxMode}
               onAddQuickMockDomain={handleAddQuickMockDomain}
             />
@@ -450,6 +558,8 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
       <CreateProjectModal
         isOpen={isCreateProjectOpen}
         onClose={() => setIsCreateProjectOpen(false)}
+        services={services}
+        domains={domains}
         onCreateProject={handleCreateProject}
       />
 
