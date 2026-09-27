@@ -11,8 +11,21 @@ import { CreateProjectModal } from './CreateProjectModal';
 import { MailSimulatorDrawer } from './MailSimulatorDrawer';
 import { ServicesMeshView } from './ServicesMeshView';
 import { TerminalView } from './TerminalView';
+import { ServiceTreeView } from './ServiceTreeView';
+import { ApiVariablesView } from './ApiVariablesView';
+import { ProgrammableStatsView } from './ProgrammableStatsView';
 
 import { initialWorkspaces, initialProjects, initialDomains } from '../data/mockData';
+import {
+  initialWorkspaceServices,
+  initialApiVariables,
+  initialProgrammableMetrics,
+} from '../data/servicesData';
+import type {
+  WorkspaceService,
+  ApiVariableItem,
+  ProgrammableMetric,
+} from '../data/servicesData';
 import type { Project, Domain, Workspace, DomainRole } from '../types/api';
 import { Send, Server, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
@@ -22,7 +35,7 @@ interface AuthenticatedDashboardProps {
 }
 
 export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDashboardProps) {
-  const [activeView, setActiveView] = useState<NavView>('projects');
+  const [activeView, setActiveView] = useState<NavView>('services');
   const [selectedProject, setSelectedProject] = useState<Project | null>(initialProjects[0]);
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>(initialWorkspaces);
@@ -30,6 +43,19 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
 
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [domains, setDomains] = useState<Domain[]>(initialDomains);
+
+  // Universal API Services & Deep Controls State
+  const [services, setServices] = useState<WorkspaceService[]>(initialWorkspaceServices);
+  const [selectedServiceId, setSelectedServiceId] = useState<string>(initialWorkspaceServices[0].id);
+  const [selectedSubsystemId, setSelectedSubsystemId] = useState<string | null>(null);
+
+  // Dual-Mode API Variables & Policies State
+  const [apiVariables, setApiVariables] = useState<ApiVariableItem[]>(initialApiVariables);
+
+  // Global Programmable Telemetry & Stats State
+  const [programmableMetrics, setProgrammableMetrics] = useState<ProgrammableMetric[]>(
+    initialProgrammableMetrics
+  );
 
   const [sandboxMode, setSandboxMode] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -40,7 +66,11 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isMailSimulatorOpen, setIsMailSimulatorOpen] = useState(false);
 
-  // Handlers
+  // Active Service Helper
+  const currentService =
+    services.find((s) => s.id === selectedServiceId) || services[0] || initialWorkspaceServices[0];
+
+  // Handlers for Projects & Domains
   const handleSelectProject = (p: Project) => {
     setSelectedProject(p);
     setActiveView('projects');
@@ -111,9 +141,97 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
     setActiveView('projects');
   };
 
+  // Handlers for Service Tree & Subsystems
+  const handleUpdateLimit = (
+    serviceId: string,
+    subsystemId: string,
+    limitKey: string,
+    newValue: number | string | boolean
+  ) => {
+    setServices((prev) =>
+      prev.map((srv) => {
+        if (srv.id !== serviceId) return srv;
+        return {
+          ...srv,
+          subsystems: srv.subsystems.map((sub) => {
+            if (sub.id !== subsystemId) return sub;
+            return {
+              ...sub,
+              limits: {
+                ...sub.limits,
+                [limitKey]: {
+                  ...sub.limits[limitKey],
+                  value: newValue,
+                },
+              },
+            };
+          }),
+        };
+      })
+    );
+
+    // Also synchronize corresponding API variable if present
+    const varKeyMap: Record<string, string> = {
+      max_inboxes_per_ip: 'MAX_INBOXES_PER_IP',
+      default_ttl_hours: 'INBOX_DEFAULT_TTL_HOURS',
+      smtp_bind_port: 'SMTP_PORT',
+      max_message_size_mb: 'MAX_MESSAGE_SIZE_MB',
+      pow_difficulty_bits: 'POW_DIFFICULTY_BITS',
+      rate_limit_burst_cap: 'RATE_LIMIT_BURST_CAP',
+    };
+    const mappedVarKey = varKeyMap[limitKey];
+    if (mappedVarKey) {
+      setApiVariables((prev) =>
+        prev.map((v) => (v.key === mappedVarKey ? { ...v, value: newValue } : v))
+      );
+    }
+  };
+
+  const handleToggleSubsystem = (serviceId: string, subsystemId: string) => {
+    setServices((prev) =>
+      prev.map((srv) => {
+        if (srv.id !== serviceId) return srv;
+        return {
+          ...srv,
+          subsystems: srv.subsystems.map((sub) => {
+            if (sub.id !== subsystemId) return sub;
+            return {
+              ...sub,
+              enabled: !sub.enabled,
+            };
+          }),
+        };
+      })
+    );
+  };
+
+  // Handlers for Dual-Mode API Variables
+  const handleUpdateVariable = (key: string, value: string | number | boolean) => {
+    setApiVariables((prev) =>
+      prev.map((item) => (item.key === key ? { ...item, value } : item))
+    );
+  };
+
+  const handleBulkUpdateVariables = (newVars: ApiVariableItem[]) => {
+    setApiVariables(newVars);
+  };
+
+  const handleResetVariableDefaults = () => {
+    setApiVariables(initialApiVariables);
+  };
+
+  // Handlers for Programmable Stats
+  const handleAddMetric = (newMetric: ProgrammableMetric) => {
+    setProgrammableMetrics((prev) => [newMetric, ...prev]);
+  };
+
+  const handleRemoveMetric = (metricId: string) => {
+    setProgrammableMetrics((prev) => prev.filter((m) => m.id !== metricId));
+  };
+
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-[#F2F4F8] text-[#111827]">
-      {/* Left Master Sidebar (SMS Virtual Style) */}
+      {/* Left Master Sidebar (SMS Virtual Style with Tree Hierarchy) */}
       <Sidebar
         activeView={activeView}
         onNavigate={(view) => {
@@ -124,8 +242,19 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
         }}
         projects={projects}
         domains={domains}
+        services={services}
         selectedProject={selectedProject}
+        selectedServiceId={selectedServiceId}
+        selectedSubsystemId={selectedSubsystemId}
         onSelectProject={handleSelectProject}
+        onSelectService={(srvId) => {
+          setSelectedServiceId(srvId);
+          setActiveView('services');
+        }}
+        onSelectSubsystem={(subId) => {
+          setSelectedSubsystemId(subId);
+          setActiveView('services');
+        }}
         onOpenAddDomain={() => setIsAddDomainOpen(true)}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
@@ -150,6 +279,41 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
 
         {/* Scrollable Viewport */}
         <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-5">
+          {/* 1. Universal API Services & Tree Drill-Down View */}
+          {activeView === 'services' && (
+            <ServiceTreeView
+              service={currentService}
+              selectedSubsystemId={selectedSubsystemId}
+              onSelectSubsystem={setSelectedSubsystemId}
+              onUpdateLimit={handleUpdateLimit}
+              onToggleSubsystem={handleToggleSubsystem}
+              onNavigateToVariables={() => setActiveView('variables')}
+              onNavigateToStats={() => setActiveView('stats')}
+            />
+          )}
+
+          {/* 2. Dual-Mode API Variables & Policies View */}
+          {activeView === 'variables' && (
+            <ApiVariablesView
+              variables={apiVariables}
+              onUpdateVariable={handleUpdateVariable}
+              onBulkUpdateVariables={handleBulkUpdateVariables}
+              onResetDefaults={handleResetVariableDefaults}
+            />
+          )}
+
+          {/* 3. Global Programmable Stats & Metrics Engine */}
+          {activeView === 'stats' && (
+            <ProgrammableStatsView
+              metrics={programmableMetrics}
+              onAddMetric={handleAddMetric}
+              onRemoveMetric={handleRemoveMetric}
+              onNavigateToVariables={() => setActiveView('variables')}
+              onNavigateToServices={() => setActiveView('services')}
+            />
+          )}
+
+          {/* 4. Projects View */}
           {activeView === 'projects' && (
             selectedProject ? (
               <ProjectDetailView
@@ -168,6 +332,7 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
             )
           )}
 
+          {/* 5. Domains View */}
           {activeView === 'domains' && (
             <DomainsView
               domains={domains}
@@ -179,6 +344,7 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
             />
           )}
 
+          {/* 6. System Mesh, Terminal, Daemons, Quotas */}
           {activeView === 'mesh' && <ServicesMeshView />}
 
           {activeView === 'terminal' && <TerminalView />}

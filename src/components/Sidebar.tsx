@@ -11,19 +11,42 @@ import {
   Plus,
   X,
   GitBranch,
-  Terminal
+  Terminal,
+  Sliders,
+  Activity,
+  ChevronDown,
+  ChevronRight,
+  Mail,
+  Inbox,
+  ShieldAlert,
+  Bell
 } from 'lucide-react';
 import type { Project, Domain } from '../types/api';
+import type { WorkspaceService } from '../data/servicesData';
 
-export type NavView = 'projects' | 'domains' | 'mesh' | 'terminal' | 'servers' | 'security';
+export type NavView =
+  | 'projects'
+  | 'domains'
+  | 'services'
+  | 'variables'
+  | 'stats'
+  | 'mesh'
+  | 'terminal'
+  | 'servers'
+  | 'security';
 
 interface SidebarProps {
   activeView: NavView;
   onNavigate: (view: NavView) => void;
   projects: Project[];
   domains: Domain[];
+  services: WorkspaceService[];
   selectedProject: Project | null;
+  selectedServiceId: string;
+  selectedSubsystemId: string | null;
   onSelectProject: (p: Project) => void;
+  onSelectService: (serviceId: string) => void;
+  onSelectSubsystem: (subsystemId: string | null) => void;
   onOpenAddDomain: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
@@ -34,13 +57,48 @@ export const Sidebar = ({
   onNavigate,
   projects,
   domains,
+  services,
   selectedProject,
+  selectedServiceId,
+  selectedSubsystemId,
   onSelectProject,
+  onSelectService,
+  onSelectSubsystem,
   onOpenAddDomain,
   isMobileOpen = false,
   onCloseMobile,
 }: SidebarProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({
+    srv_tempmail_rust: true,
+  });
+
+  const toggleServiceExpand = (serviceId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedServices((prev) => ({
+      ...prev,
+      [serviceId]: !prev[serviceId],
+    }));
+  };
+
+  const getSubsystemIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Mail':
+        return <Mail className="size-3.5" />;
+      case 'Inbox':
+        return <Inbox className="size-3.5" />;
+      case 'Globe':
+        return <Globe className="size-3.5" />;
+      case 'Smartphone':
+        return <Smartphone className="size-3.5" />;
+      case 'ShieldAlert':
+        return <ShieldAlert className="size-3.5" />;
+      case 'Bell':
+        return <Bell className="size-3.5" />;
+      default:
+        return <Layers className="size-3.5" />;
+    }
+  };
 
   const filteredProjects = projects.filter(
     (p) =>
@@ -50,6 +108,12 @@ export const Sidebar = ({
 
   const filteredDomains = domains.filter((d) =>
     d.domain.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredServices = services.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.subsystems.some((sub) => sub.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const getProjectIcon = (slug: string) => {
@@ -87,7 +151,7 @@ export const Sidebar = ({
     <aside className="w-[310px] sm:w-[350px] xl:w-[380px] h-full bg-white border-r border-[#EAEEF4] flex flex-col justify-between shrink-0 p-5 sm:p-6 select-none shadow-[4px_0_24px_rgba(15,23,42,0.02)]">
       <div className="flex flex-col flex-1 min-h-0">
         {/* Top Brand Logo matching SMS Virtual */}
-        <div className="flex items-center justify-between gap-2 pb-5">
+        <div className="flex items-center justify-between gap-2 pb-4">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="size-11 rounded-[14px] bg-gradient-to-tr from-[#0066FF] to-[#38BDF8] flex items-center justify-center text-white shadow-md shadow-blue-500/25 shrink-0">
               <Layers className="size-6 stroke-[2.2]" />
@@ -97,7 +161,7 @@ export const Sidebar = ({
                 VKRM Panel
               </div>
               <div className="text-xs font-medium text-[#94A3B8] mt-1 truncate">
-                universal api & mail routing
+                universal api & mesh router
               </div>
             </div>
           </div>
@@ -114,17 +178,26 @@ export const Sidebar = ({
         </div>
 
         {/* Section Title */}
-        <h2 className="text-[17px] sm:text-[18px] font-bold text-[#111827] mb-3">
+        <h2 className="text-[17px] sm:text-[18px] font-bold text-[#111827] mb-2.5">
           Control Center
         </h2>
 
-        {/* Segmented Pill Switcher (Exact SMS Virtual [Activation | Rent] style) */}
-        <div className="bg-[#F3F5F8] p-1 rounded-[14px] grid grid-cols-4 gap-1 mb-3.5">
+        {/* Segmented Pill Switcher (Exact SMS Virtual style) */}
+        <div className="bg-[#F3F5F8] p-1 rounded-[14px] grid grid-cols-4 gap-1 mb-3">
           <button
             type="button"
-            onClick={() => {
-              onNavigate('projects');
-            }}
+            onClick={() => onNavigate('services')}
+            className={`py-2 px-1 rounded-[11px] text-[12px] transition cursor-pointer truncate ${
+              activeView === 'services' || activeView === 'variables' || activeView === 'stats'
+                ? 'bg-white text-[#0066FF] font-bold shadow-[0_2px_8px_rgba(15,23,42,0.06)]'
+                : 'text-[#64748B] font-semibold hover:text-[#111827]'
+            }`}
+          >
+            Services
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('projects')}
             className={`py-2 px-1 rounded-[11px] text-[12px] transition cursor-pointer truncate ${
               activeView === 'projects'
                 ? 'bg-white text-[#111827] font-bold shadow-[0_2px_8px_rgba(15,23,42,0.06)]'
@@ -135,9 +208,7 @@ export const Sidebar = ({
           </button>
           <button
             type="button"
-            onClick={() => {
-              onNavigate('domains');
-            }}
+            onClick={() => onNavigate('domains')}
             className={`py-2 px-1 rounded-[11px] text-[12px] transition cursor-pointer truncate ${
               activeView === 'domains'
                 ? 'bg-white text-[#111827] font-bold shadow-[0_2px_8px_rgba(15,23,42,0.06)]'
@@ -148,24 +219,9 @@ export const Sidebar = ({
           </button>
           <button
             type="button"
-            onClick={() => {
-              onNavigate('mesh');
-            }}
+            onClick={() => onNavigate('terminal')}
             className={`py-2 px-1 rounded-[11px] text-[12px] transition cursor-pointer truncate ${
-              activeView === 'mesh'
-                ? 'bg-white text-[#0066FF] font-bold shadow-[0_2px_8px_rgba(15,23,42,0.06)]'
-                : 'text-[#64748B] font-semibold hover:text-[#111827]'
-            }`}
-          >
-            API Mesh
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onNavigate('terminal');
-            }}
-            className={`py-2 px-1 rounded-[11px] text-[12px] transition cursor-pointer truncate ${
-              activeView === 'terminal' || activeView === 'servers' || activeView === 'security'
+              activeView === 'terminal' || activeView === 'mesh' || activeView === 'servers' || activeView === 'security'
                 ? 'bg-white text-[#111827] font-bold shadow-[0_2px_8px_rgba(15,23,42,0.06)]'
                 : 'text-[#64748B] font-semibold hover:text-[#111827]'
             }`}
@@ -174,20 +230,192 @@ export const Sidebar = ({
           </button>
         </div>
 
+        {/* Global Features Bar (Variables & Programmable Stats) */}
+        <div className="grid grid-cols-2 gap-1.5 mb-3.5">
+          <button
+            type="button"
+            onClick={() => {
+              onNavigate('variables');
+              onCloseMobile?.();
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 border ${
+              activeView === 'variables'
+                ? 'bg-[#EEF4FF] border-[#0066FF] text-[#0066FF] shadow-2xs'
+                : 'bg-[#F8FAFC] border-[#EAEEF4] text-[#64748B] hover:bg-white hover:text-[#111827]'
+            }`}
+          >
+            <Sliders className="size-3.5 text-[#0066FF]" />
+            <span className="truncate">API Variables</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onNavigate('stats');
+              onCloseMobile?.();
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 border ${
+              activeView === 'stats'
+                ? 'bg-[#EEF4FF] border-[#0066FF] text-[#0066FF] shadow-2xs'
+                : 'bg-[#F8FAFC] border-[#EAEEF4] text-[#64748B] hover:bg-white hover:text-[#111827]'
+            }`}
+          >
+            <Activity className="size-3.5 text-[#0066FF]" />
+            <span className="truncate">Global Stats</span>
+          </button>
+        </div>
+
         {/* Soft Pill Search Input */}
-        <div className="bg-[#F3F5F8] rounded-[14px] px-3.5 py-2.5 flex items-center gap-2.5 mb-4 border border-transparent focus-within:bg-white focus-within:border-[#0066FF] transition">
+        <div className="bg-[#F3F5F8] rounded-[14px] px-3.5 py-2 flex items-center gap-2.5 mb-3.5 border border-transparent focus-within:bg-white focus-within:border-[#0066FF] transition">
           <Search className="size-4 text-[#94A3B8] shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Enter project or domain name..."
+            placeholder="Search services, limits, trees..."
             className="w-full bg-transparent text-[13px] text-[#111827] placeholder-[#94A3B8] font-medium focus:outline-none min-w-0"
           />
         </div>
 
         {/* Interactive Master List */}
         <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+          {/* Services Tree View */}
+          {(activeView === 'services' || activeView === 'variables' || activeView === 'stats') && (
+            <div className="space-y-3">
+              <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#94A3B8] px-1">
+                Workspace Services & Tree
+              </div>
+
+              {filteredServices.map((service) => {
+                const isExpanded = !!expandedServices[service.id];
+                const isServiceSelected =
+                  activeView === 'services' &&
+                  selectedServiceId === service.id &&
+                  selectedSubsystemId === null;
+
+                return (
+                  <div
+                    key={service.id}
+                    className="rounded-2xl border border-[#EAEEF4] bg-[#F8FAFC] overflow-hidden transition"
+                  >
+                    {/* Service Root Header */}
+                    <div
+                      onClick={() => {
+                        onSelectService(service.id);
+                        onSelectSubsystem(null);
+                        onNavigate('services');
+                        onCloseMobile?.();
+                      }}
+                      className={`p-3 flex items-center justify-between gap-2 cursor-pointer transition ${
+                        isServiceSelected
+                          ? 'bg-[#0066FF]/10 text-[#0066FF]'
+                          : 'hover:bg-white text-[#111827]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="size-9 rounded-xl bg-gradient-to-tr from-[#0066FF] to-[#38BDF8] flex items-center justify-center text-white shrink-0 shadow-xs">
+                          <Server className="size-4.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-extrabold truncate">
+                            {service.name}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-[#64748B]">
+                            <span className="size-2 rounded-full bg-[#10B981] shrink-0" />
+                            <span className="truncate">{service.version}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => toggleServiceExpand(service.id, e)}
+                        className="p-1 rounded-lg hover:bg-black/5 text-[#94A3B8] hover:text-[#111827] cursor-pointer"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="size-4" />
+                        ) : (
+                          <ChevronRight className="size-4" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Subsystem Tree Branches */}
+                    {isExpanded && (
+                      <div className="px-2 pb-2 pt-1 border-t border-[#EAEEF4]/60 bg-white space-y-1">
+                        {/* Subsystem Root Link */}
+                        <div
+                          onClick={() => {
+                            onSelectService(service.id);
+                            onSelectSubsystem(null);
+                            onNavigate('services');
+                            onCloseMobile?.();
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-between cursor-pointer transition ${
+                            isServiceSelected
+                              ? 'bg-[#EEF4FF] text-[#0066FF]'
+                              : 'text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#111827]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Layers className="size-3.5" />
+                            <span>Mesh Overview</span>
+                          </div>
+                          <span className="text-[10px] bg-[#F1F5F9] px-2 py-0.5 rounded-md font-mono">
+                            all
+                          </span>
+                        </div>
+
+                        {/* Individual Subsystems */}
+                        {service.subsystems.map((sub) => {
+                          const isSubSelected =
+                            activeView === 'services' &&
+                            selectedServiceId === service.id &&
+                            selectedSubsystemId === sub.id;
+
+                          return (
+                            <div
+                              key={sub.id}
+                              onClick={() => {
+                                onSelectService(service.id);
+                                onSelectSubsystem(sub.id);
+                                onNavigate('services');
+                                onCloseMobile?.();
+                              }}
+                              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between cursor-pointer transition ${
+                                isSubSelected
+                                  ? 'bg-[#0066FF] text-white shadow-xs'
+                                  : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#111827]'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className={isSubSelected ? 'text-white' : 'text-[#0066FF]'}>
+                                  {getSubsystemIcon(sub.icon)}
+                                </span>
+                                <span className="truncate">{sub.name}</span>
+                              </div>
+
+                              <span
+                                className={`size-2 rounded-full shrink-0 ${
+                                  sub.enabled
+                                    ? isSubSelected
+                                      ? 'bg-white'
+                                      : 'bg-[#10B981]'
+                                    : 'bg-[#CBD5E1]'
+                                }`}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Projects View */}
           {activeView === 'projects' && (
             <>
               {filteredProjects.map((p) => {
@@ -235,6 +463,7 @@ export const Sidebar = ({
             </>
           )}
 
+          {/* Domains View */}
           {activeView === 'domains' && (
             <>
               {filteredDomains.map((d) => (
@@ -296,6 +525,7 @@ export const Sidebar = ({
             </>
           )}
 
+          {/* System Submenu Links */}
           {(activeView === 'mesh' || activeView === 'terminal' || activeView === 'servers' || activeView === 'security') && (
             <div className="space-y-2">
               <div
@@ -416,9 +646,9 @@ export const Sidebar = ({
       <div className="pt-4 border-t border-[#F1F5F9] flex items-center justify-between text-xs text-[#64748B]">
         <div className="flex items-center gap-2">
           <span className="size-2 rounded-full bg-[#10B981]" />
-          <span className="font-semibold text-[#111827]">Rust Axum Hub</span>
+          <span className="font-semibold text-[#111827]">Tokio Runtime</span>
         </div>
-        <span className="font-semibold text-[#0066FF]">Postfix :25 OK</span>
+        <span className="font-semibold text-[#0066FF]">:8080 :2525 OK</span>
       </div>
     </aside>
   );
