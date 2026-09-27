@@ -28,6 +28,7 @@ import type {
 } from '../data/servicesData';
 import type { Project, Domain, Workspace, DomainRole } from '../types/api';
 import { Send, Server, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { apiClient } from '../services/apiClient';
 
 interface AuthenticatedDashboardProps {
   adminEmail: string;
@@ -103,12 +104,41 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
 
   const [sandboxMode, setSandboxMode] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isLiveBackend, setIsLiveBackend] = useState<boolean>(true);
 
   // Modals
   const [isAddDomainOpen, setIsAddDomainOpen] = useState(false);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isMailSimulatorOpen, setIsMailSimulatorOpen] = useState(false);
+
+  // Live Backend Synchronization with fallback
+  const loadLiveBackendData = async () => {
+    try {
+      const isOnline = await apiClient.checkHealth();
+      if (!isOnline) {
+        setIsLiveBackend(false);
+        return;
+      }
+      setIsLiveBackend(true);
+
+      const liveProjects = await apiClient.getProjects(currentWorkspace.slug);
+      if (liveProjects && liveProjects.length > 0) {
+        setProjects(liveProjects);
+      }
+
+      const liveDomains = await apiClient.getDomains(currentWorkspace.slug);
+      if (liveDomains && liveDomains.length > 0) {
+        setDomains(liveDomains);
+      }
+    } catch {
+      setIsLiveBackend(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLiveBackendData();
+  }, [currentWorkspace.slug]);
 
   // Sync state changes to localStorage
   useEffect(() => {
@@ -158,14 +188,22 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
     }
   };
 
-  const handleDeleteProject = (slug: string) => {
+  const handleDeleteProject = async (slug: string) => {
     setProjects((prev) => prev.filter((p) => p.slug !== slug));
     if (selectedProject?.slug === slug) {
       setSelectedProject(null);
     }
+
+    if (isLiveBackend) {
+      try {
+        await apiClient.deleteProject(currentWorkspace.slug, slug);
+      } catch (err) {
+        console.warn('Backend delete error, removed locally', err);
+      }
+    }
   };
 
-  const handleAddDomain = (domainName: string, role: DomainRole, targetProject: string) => {
+  const handleAddDomain = async (domainName: string, role: DomainRole, targetProject: string) => {
     const newDomain: Domain = {
       id: `d_${Date.now()}`,
       domain: domainName,
@@ -183,6 +221,14 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
             : p
         )
       );
+    }
+
+    if (isLiveBackend) {
+      try {
+        await apiClient.createDomain(currentWorkspace.slug, domainName, role);
+      } catch (err) {
+        console.warn('Backend domain creation error, stored locally', err);
+      }
     }
   };
 
@@ -238,10 +284,24 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
     setCurrentWorkspace(ws);
   };
 
-  const handleCreateProject = (p: Project) => {
+  const handleCreateProject = async (p: Project) => {
     setProjects((prev) => [...prev, p]);
     setSelectedProject(p);
     setActiveView('projects');
+
+    if (isLiveBackend) {
+      try {
+        await apiClient.createProject(currentWorkspace.slug, {
+          slug: p.slug,
+          name: p.name,
+          description: p.description || '',
+          assigned_domain_ids: p.assigned_domain_ids,
+          components: p.components,
+        });
+      } catch (err) {
+        console.warn('Backend create project error, saved locally', err);
+      }
+    }
   };
 
   // Handlers for Service Tree & Subsystems
@@ -378,6 +438,8 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
           adminEmail={adminEmail}
           onLogout={onLogout}
+          isLiveBackend={isLiveBackend}
+          onRefreshBackend={loadLiveBackendData}
         />
 
         {/* Scrollable Viewport */}

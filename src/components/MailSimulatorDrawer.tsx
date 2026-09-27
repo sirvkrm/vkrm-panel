@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { X, Send, Sparkles, CheckCircle2 } from 'lucide-react';
 import type { Domain } from '../types/api';
+import { apiClient } from '../services/apiClient';
 
 interface MailSimulatorDrawerProps {
   isOpen: boolean;
@@ -32,13 +33,24 @@ export const MailSimulatorDrawer = ({
     const steps = [
       'Packing RFC 822 multipart MIME envelope payload...',
       'Recipient MX envelope confirmed: ' + to,
-      'Committing raw stream to Redis Hot Pool (0.2ms latency)...',
-      'Realtime SSE broadcast dispatched to active inboxes!'
+      'Committing raw stream to Ingest Engine (:2525)...',
     ];
 
     for (let i = 0; i < steps.length; i++) {
       await new Promise((r) => setTimeout(r, 220));
       setLogs((prev) => [...prev, steps[i]]);
+    }
+
+    try {
+      const inboxId = to.split('@')[0] || 'dev';
+      await apiClient.injectTestMessage('default', inboxId, {
+        sender: from,
+        subject,
+        body,
+      });
+      setLogs((prev) => [...prev, '✓ Injected into live MailMesh Ingest pipeline & SSE broadcasted!']);
+    } catch {
+      setLogs((prev) => [...prev, 'Simulated SSE broadcast dispatched to active inboxes!']);
     }
 
     setIsFiring(false);

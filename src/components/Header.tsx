@@ -14,6 +14,8 @@ interface HeaderProps {
   onOpenMobileSidebar?: () => void;
   adminEmail?: string;
   onLogout?: () => void;
+  isLiveBackend?: boolean;
+  onRefreshBackend?: () => void;
 }
 
 export const Header = ({
@@ -27,6 +29,8 @@ export const Header = ({
   onOpenMobileSidebar,
   adminEmail,
   onLogout,
+  isLiveBackend = true,
+  onRefreshBackend,
 }: HeaderProps) => {
   const [openWsDropdown, setOpenWsDropdown] = useState(false);
 
@@ -45,13 +49,22 @@ export const Header = ({
           </button>
         )}
 
-        <div className="flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-white rounded-full border border-[#EAEEF4] shadow-2xs whitespace-nowrap shrink-0">
-          <span className="size-2 rounded-full bg-[#10B981] animate-pulse shrink-0" />
-          <span className="text-xs font-bold text-[#111827]">45.194.47.43</span>
-          <span className="text-[11px] font-bold text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded-full">
-            0.7ms
+        <button
+          type="button"
+          onClick={onRefreshBackend}
+          title={isLiveBackend ? "Connected to MailMesh Rust Hub (:18080)" : "Click to reconnect to Rust Backend"}
+          className="flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-white rounded-full border border-[#EAEEF4] shadow-2xs whitespace-nowrap shrink-0 cursor-pointer hover:border-[#CBD5E1] transition"
+        >
+          <span className={`size-2 rounded-full shrink-0 ${isLiveBackend ? 'bg-[#10B981] animate-pulse' : 'bg-[#F59E0B]'}`} />
+          <span className="text-xs font-bold text-[#111827]">
+            {isLiveBackend ? 'MailMesh Hub :18080' : 'Local Storage Fallback'}
           </span>
-        </div>
+          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+            isLiveBackend ? 'text-[#10B981] bg-[#10B981]/10' : 'text-[#F59E0B] bg-[#F59E0B]/10'
+          }`}>
+            {isLiveBackend ? 'LIVE' : 'CACHE'}
+          </span>
+        </button>
       </div>
 
       {/* Right Controls */}
