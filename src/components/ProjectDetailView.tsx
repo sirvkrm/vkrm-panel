@@ -604,7 +604,7 @@ export const ProjectDetailView = ({
                                     {ep.method} {fullResolvedUrl}
                                   </code>
                                   <span className="text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#F37B21]/12 text-[#F37B21]">
-                                    {project.active_version.toUpperCase()}
+                                    {(project.active_version || 'v1').toUpperCase()}
                                   </span>
                                 </div>
                               </div>

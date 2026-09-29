@@ -166,8 +166,23 @@ export const apiClient = {
    */
   async getProjects(workspaceSlug = 'default'): Promise<Project[]> {
     const res = await request<{ projects: Project[] } | Project[]>(`/admin/${workspaceSlug}/projects`, { method: 'GET' });
-    if (Array.isArray(res)) return res;
-    return res.projects || [];
+    const list = Array.isArray(res) ? res : res.projects || [];
+    return list.map((p) => ({
+      ...p,
+      active_version: p.active_version || 'v1',
+      v1_sunset_days: p.v1_sunset_days ?? 30,
+      assigned_domain_ids: p.assigned_domain_ids || [],
+      bypass_slug: p.bypass_slug ?? false,
+      services: p.services || ['srv_tempmail_rust'],
+      components: p.components || {
+        core_mail: true,
+        fcm_push: false,
+        play_integrity: false,
+        pow_challenge: false,
+        vip_ad_rewards: false,
+        custom_prefixes: false,
+      },
+    }));
   },
 
   /**
@@ -227,9 +242,20 @@ export const apiClient = {
    * Fetch registered domains for a workspace
    */
   async getDomains(workspaceSlug = 'default'): Promise<Domain[]> {
-    const res = await request<{ domains: Domain[] } | Domain[]>(`/admin/${workspaceSlug}/domains`, { method: 'GET' });
-    if (Array.isArray(res)) return res;
-    return res.domains || [];
+    const res = await request<any>(`/admin/${workspaceSlug}/domains`, { method: 'GET' });
+    let list: any[] = [];
+    if (Array.isArray(res)) {
+      list = res;
+    } else if (res && typeof res === 'object') {
+      if (Array.isArray(res.domains)) list = res.domains;
+      else if (res.id) list = [res];
+    }
+    return list.map((d) => ({
+      ...d,
+      role: d.role || 'dual',
+      status: d.status || 'verified',
+      target_project: d.target_project || '',
+    }));
   },
 
   /**

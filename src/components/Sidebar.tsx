@@ -450,10 +450,10 @@ export const Sidebar = ({
 
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-[14.5px] font-extrabold text-[#0066FF]">
-                        {p.assigned_domain_ids.length}
+                        {p.assigned_domain_ids?.length || 0}
                       </span>
                       <span className="size-5 rounded-full bg-[#0066FF] text-white text-[10px] font-extrabold flex items-center justify-center">
-                        {p.active_version.toUpperCase()}
+                        {(p.active_version || 'v1').toUpperCase()}
                       </span>
                       <Info className="size-4 text-[#CBD5E1] ml-0.5 hidden sm:block" />
                     </div>

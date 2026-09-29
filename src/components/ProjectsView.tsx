@@ -113,7 +113,7 @@ export const ProjectsView = ({
 
                   <div className="flex items-center gap-1.5">
                     <span className="px-2.5 py-1 rounded-full bg-[#0066FF]/10 text-[#0066FF] text-xs font-extrabold">
-                      {p.active_version.toUpperCase()}
+                      {(p.active_version || 'v1').toUpperCase()}
                     </span>
 
                     {onDeleteProject && (
