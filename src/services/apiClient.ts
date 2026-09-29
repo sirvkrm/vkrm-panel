@@ -112,11 +112,12 @@ export const apiClient = {
    */
   async checkHealth(): Promise<boolean> {
     try {
-      // First try root /healthz on hub
-      const res = await fetch(`${API_BASE}/../healthz`, { method: 'GET' });
-      if (res.ok) return true;
-      const hubRes = await fetch(`${API_BASE}/healthz`, { method: 'GET' });
-      return hubRes.ok;
+      const res = await fetch(`${API_BASE}/control/session`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      // 200 (authenticated) or 401 (unauthenticated) confirms the live Rust Hub is active and responding
+      return res.status === 200 || res.status === 401;
     } catch {
       return false;
     }

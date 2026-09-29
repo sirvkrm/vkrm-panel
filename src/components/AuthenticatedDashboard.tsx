@@ -122,12 +122,15 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
       }
       setIsLiveBackend(true);
 
-      const liveProjects = await apiClient.getProjects(currentWorkspace.slug);
+      const session = await apiClient.getSession();
+      const wsSlug = session?.session?.workspaceSlug || currentWorkspace.slug || 'default';
+
+      const liveProjects = await apiClient.getProjects(wsSlug);
       if (liveProjects && liveProjects.length > 0) {
         setProjects(liveProjects);
       }
 
-      const liveDomains = await apiClient.getDomains(currentWorkspace.slug);
+      const liveDomains = await apiClient.getDomains(wsSlug);
       if (liveDomains && liveDomains.length > 0) {
         setDomains(liveDomains);
       }

@@ -1,8 +1,8 @@
 import type { Workspace, Project, Domain, EndpointCategory } from '../types/api';
 
 export const initialWorkspaces: Workspace[] = [
-  { slug: 'vkrm-mobile', name: 'VKRM Mobile', tier: 'Enterprise Admin', admin_email: 'admin@vkrm.site' },
-  { slug: 'default', name: 'Default Cluster', tier: 'Standard', admin_email: 'ops@vkrm.site' }
+  { slug: 'default', name: 'VKRM Mobile', tier: 'Enterprise Admin', admin_email: 'admin@vkrm.internal' },
+  { slug: 'vkrm-mobile', name: 'VKRM Mobile (Legacy)', tier: 'Standard', admin_email: 'admin@vkrm.site' }
 ];
 
 export const initialDomains: Domain[] = [
