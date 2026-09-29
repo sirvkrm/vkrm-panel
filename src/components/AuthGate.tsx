@@ -12,6 +12,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { authService } from '../services/authService';
+import { apiClient } from '../services/apiClient';
 
 interface AuthGateProps {
   onAuthenticated: (adminEmail: string) => void;
@@ -102,11 +103,34 @@ export function AuthGate({ onAuthenticated }: AuthGateProps) {
 
     setLoading(true);
     try {
+      // 1. Attempt login with live Rust backend to get genuine session cookie
+      let liveSuccess = false;
+      try {
+        const liveRes = await apiClient.login(email.trim().toLowerCase(), password);
+        if (liveRes && (liveRes.session || liveRes.user)) {
+          liveSuccess = true;
+        }
+      } catch (backendErr) {
+        console.warn('Backend live login attempt note: ', backendErr);
+      }
+
+      // 2. If live login succeeded, ensure local vault is initialized and grant entry
+      if (liveSuccess) {
+        try {
+          if (!authService.isConfigured()) {
+            await authService.setupMasterCredentials(email, password);
+          }
+        } catch {}
+        onAuthenticated(email.trim().toLowerCase());
+        return;
+      }
+
+      // 3. Fallback to local cryptographic vault
       const result = await authService.login(email, password);
       if (result.success) {
         onAuthenticated(email.trim().toLowerCase());
       } else {
-        setError(result.error || 'Authentication failed.');
+        setError(result.error || 'Invalid administrator email or password.');
         if (result.remainingLockoutSeconds) {
           setLockoutSeconds(result.remainingLockoutSeconds);
         }

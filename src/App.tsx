@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { AuthGate } from './components/AuthGate';
 import { authService } from './services/authService';
+import { apiClient } from './services/apiClient';
 import { ShieldAlert } from 'lucide-react';
 
 const AuthenticatedDashboard = lazy(() =>
@@ -15,18 +16,40 @@ export function App() {
   // Validate active session token on startup
   useEffect(() => {
     let mounted = true;
-    authService.validateCurrentSession().then((res) => {
-      if (mounted) {
-        if (res.authenticated && res.email) {
+    async function checkAuth() {
+      // 1. Check local session
+      const localRes = await authService.validateCurrentSession();
+      if (localRes.authenticated && localRes.email) {
+        if (mounted) {
           setIsAuthenticated(true);
-          setAdminEmail(res.email);
-        } else {
-          setIsAuthenticated(false);
-          setAdminEmail('');
+          setAdminEmail(localRes.email);
+          setIsAuthChecking(false);
         }
+        return;
+      }
+
+      // 2. Check live backend session
+      try {
+        const liveSession = await apiClient.getSession();
+        if (liveSession && (liveSession.user || (liveSession as any).session)) {
+          const userEmail = liveSession.user?.email || (liveSession as any).session?.email;
+          if (mounted && userEmail) {
+            setIsAuthenticated(true);
+            setAdminEmail(userEmail);
+            setIsAuthChecking(false);
+            return;
+          }
+        }
+      } catch {}
+
+      if (mounted) {
+        setIsAuthenticated(false);
+        setAdminEmail('');
         setIsAuthChecking(false);
       }
-    });
+    }
+
+    checkAuth();
     return () => {
       mounted = false;
     };
@@ -34,6 +57,7 @@ export function App() {
 
   const handleLogout = () => {
     authService.logout();
+    apiClient.logout().catch(() => {});
     setIsAuthenticated(false);
     setAdminEmail('');
   };

@@ -29,12 +29,27 @@ export interface HubHealth {
 }
 
 export interface ControlSession {
-  user: {
+  user?: {
     id: string;
     email: string;
     display_name: string;
     role: string;
     workspace_id?: string | null;
+  };
+  session?: {
+    active: boolean;
+    approved: boolean;
+    displayName: string;
+    email: string;
+    expiresAt: string;
+    role: string;
+    workspaceName?: string;
+    workspaceSlug?: string;
+  };
+  auth?: {
+    legacyOwnerHeaderAuth: boolean;
+    legacyWorkspaceAdminHeaderAuth: boolean;
+    secureCookie: boolean;
   };
   token?: string;
   expires_at?: string;
