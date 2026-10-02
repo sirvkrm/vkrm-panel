@@ -14,6 +14,7 @@ import { TerminalView } from './TerminalView';
 import { ServiceTreeView } from './ServiceTreeView';
 import { ApiVariablesView } from './ApiVariablesView';
 import { ProgrammableStatsView } from './ProgrammableStatsView';
+import { ApiKeysView } from './ApiKeysView';
 
 import { initialWorkspaces, initialProjects, initialDomains } from '../data/mockData';
 import {
@@ -26,7 +27,7 @@ import type {
   ApiVariableItem,
   ProgrammableMetric,
 } from '../data/servicesData';
-import type { Project, Domain, Workspace, DomainRole } from '../types/api';
+import type { Project, Domain, Workspace, DomainRole, ApiKeyRecord } from '../types/api';
 import { Send, Server, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 
@@ -102,6 +103,15 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
     return initialProgrammableMetrics;
   });
 
+  // Persistent API Keys State
+  const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('vkrm_api_keys_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
   const [sandboxMode, setSandboxMode] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLiveBackend, setIsLiveBackend] = useState<boolean>(true);
@@ -134,6 +144,11 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
       if (liveDomains && liveDomains.length > 0) {
         setDomains(liveDomains);
       }
+
+      const liveKeys = await apiClient.getApiKeys(wsSlug);
+      if (liveKeys && liveKeys.length > 0) {
+        setApiKeys(liveKeys);
+      }
     } catch {
       setIsLiveBackend(false);
     }
@@ -155,6 +170,12 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
       localStorage.setItem('vkrm_domains_v2', JSON.stringify(domains));
     } catch {}
   }, [domains]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('vkrm_api_keys_v2', JSON.stringify(apiKeys));
+    } catch {}
+  }, [apiKeys]);
 
   useEffect(() => {
     try {
@@ -409,6 +430,7 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
         projects={projects}
         domains={domains}
         services={services}
+        apiKeys={apiKeys}
         selectedProject={selectedProject}
         selectedServiceId={selectedServiceId}
         selectedSubsystemId={selectedSubsystemId}
@@ -517,7 +539,44 @@ export function AuthenticatedDashboard({ adminEmail, onLogout }: AuthenticatedDa
             />
           )}
 
-          {/* 6. System Mesh, Terminal, Daemons, Quotas */}
+          {/* 6. API Keys & Developer SDK */}
+          {activeView === 'api-keys' && (
+            <ApiKeysView
+              apiKeys={apiKeys}
+              projects={projects}
+              domains={domains}
+              currentWorkspaceSlug={currentWorkspace.slug || 'default'}
+              isLiveBackend={isLiveBackend}
+              onRefresh={async () => {
+                const wsSlug = currentWorkspace.slug || 'default';
+                const liveKeys = await apiClient.getApiKeys(wsSlug);
+                setApiKeys(liveKeys);
+              }}
+              onKeyCreated={(newKey) => {
+                setApiKeys((prev) => [newKey, ...prev.filter((k) => k.id !== newKey.id)]);
+              }}
+              onKeyRotated={(keyId, updated) => {
+                setApiKeys((prev) =>
+                  prev.map((k) => (k.id === keyId ? updated : k))
+                );
+              }}
+              onKeyRevoked={(keyId) => {
+                setApiKeys((prev) =>
+                  prev.map((k) =>
+                    k.id === keyId
+                      ? {
+                          ...k,
+                          revoked_at: new Date().toISOString(),
+                          revokedAt: new Date().toISOString(),
+                        }
+                      : k
+                  )
+                );
+              }}
+            />
+          )}
+
+          {/* 7. System Mesh, Terminal, Daemons, Quotas */}
           {activeView === 'mesh' && <ServicesMeshView />}
 
           {activeView === 'terminal' && <TerminalView />}

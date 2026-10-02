@@ -415,15 +415,20 @@ export interface AdaptiveGuidance {
 
 export interface ApiKeyRecord {
   id: string;
-  workspace_id: string;
+  workspace_id?: string;
+  workspaceId?: string;
   label: string;
   scopes: string[];
   preview: string;
   lookup_hash?: string | null;
-  secret_hash: string;
-  created_at: string;
+  secret_hash?: string;
+  created_at?: string;
+  createdAt?: string;
   last_used_at?: string | null;
+  lastUsedAt?: string | null;
   revoked_at?: string | null;
+  revokedAt?: string | null;
+  rate_limit_per_minute?: number | null;
 }
 
 export interface SecretIssue {

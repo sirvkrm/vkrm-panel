@@ -15,6 +15,8 @@ import type {
   Domain,
   ComponentSwitches,
   DomainCheckOutcome,
+  ApiKeyRecord,
+  SecretIssue,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -310,5 +312,73 @@ export const apiClient = {
         body: JSON.stringify(data),
       }
     );
+  },
+
+  /**
+   * Fetch active API keys for a workspace
+   */
+  async getApiKeys(workspaceSlug = 'default'): Promise<ApiKeyRecord[]> {
+    const res = await request<any>(`/admin/${workspaceSlug}/api-keys`, { method: 'GET' });
+    let list: any[] = [];
+    if (Array.isArray(res)) {
+      list = res;
+    } else if (res && typeof res === 'object') {
+      if (Array.isArray(res.apiKeys)) list = res.apiKeys;
+      else if (Array.isArray(res.keys)) list = res.keys;
+    }
+    return list.map((k) => ({
+      id: k.id || '',
+      workspace_id: k.workspaceId || k.workspace_id || '',
+      workspaceId: k.workspaceId || k.workspace_id || '',
+      label: k.label || 'Default Key',
+      scopes: Array.isArray(k.scopes) ? k.scopes : ['workspace', 'mobile'],
+      preview: k.preview || (k.id ? `wrk_${k.id.slice(0, 4)}...${k.id.slice(-4)}` : 'wrk_live_key'),
+      lookup_hash: k.lookup_hash || null,
+      secret_hash: k.secret_hash || '',
+      created_at: k.createdAt || k.created_at || new Date().toISOString(),
+      createdAt: k.createdAt || k.created_at || new Date().toISOString(),
+      last_used_at: k.lastUsedAt || k.last_used_at || null,
+      lastUsedAt: k.lastUsedAt || k.last_used_at || null,
+      revoked_at: k.revokedAt || k.revoked_at || null,
+      revokedAt: k.revokedAt || k.revoked_at || null,
+      rate_limit_per_minute: k.rate_limit_per_minute ?? null,
+    }));
+  },
+
+  /**
+   * Create a new API key in the Rust control plane
+   */
+  async createApiKey(
+    workspaceSlug = 'default',
+    data: { label: string; scopes?: string[] }
+  ): Promise<{ issue: SecretIssue }> {
+    return request<{ issue: SecretIssue }>(`/admin/${workspaceSlug}/api-keys`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Rotate an API key (invalidates old secret, returns new secret)
+   */
+  async rotateApiKey(
+    workspaceSlug = 'default',
+    keyId: string
+  ): Promise<{ issue: SecretIssue }> {
+    return request<{ issue: SecretIssue }>(`/admin/${workspaceSlug}/api-keys/${keyId}/rotate`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Revoke an API key
+   */
+  async revokeApiKey(
+    workspaceSlug = 'default',
+    keyId: string
+  ): Promise<{ revoked: boolean }> {
+    return request<{ revoked: boolean }>(`/admin/${workspaceSlug}/api-keys/${keyId}`, {
+      method: 'DELETE',
+    });
   },
 };

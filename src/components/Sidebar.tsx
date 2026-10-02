@@ -19,9 +19,10 @@ import {
   Mail,
   Inbox,
   ShieldAlert,
-  Bell
+  Bell,
+  KeyRound,
 } from 'lucide-react';
-import type { Project, Domain } from '../types/api';
+import type { Project, Domain, ApiKeyRecord } from '../types/api';
 import type { WorkspaceService } from '../data/servicesData';
 
 export type NavView =
@@ -33,7 +34,8 @@ export type NavView =
   | 'mesh'
   | 'terminal'
   | 'servers'
-  | 'security';
+  | 'security'
+  | 'api-keys';
 
 interface SidebarProps {
   activeView: NavView;
@@ -41,6 +43,7 @@ interface SidebarProps {
   projects: Project[];
   domains: Domain[];
   services: WorkspaceService[];
+  apiKeys?: ApiKeyRecord[];
   selectedProject: Project | null;
   selectedServiceId: string;
   selectedSubsystemId: string | null;
@@ -58,6 +61,7 @@ export const Sidebar = ({
   projects,
   domains,
   services,
+  apiKeys = [],
   selectedProject,
   selectedServiceId,
   selectedSubsystemId,
@@ -230,22 +234,22 @@ export const Sidebar = ({
           </button>
         </div>
 
-        {/* Global Features Bar (Variables & Programmable Stats) */}
-        <div className="grid grid-cols-2 gap-1.5 mb-3.5">
+        {/* Global Features Bar (Variables & Programmable Stats & API Keys) */}
+        <div className="grid grid-cols-3 gap-1.5 mb-3.5">
           <button
             type="button"
             onClick={() => {
               onNavigate('variables');
               onCloseMobile?.();
             }}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 border ${
+            className={`px-2 py-2 rounded-xl text-[11.5px] font-bold transition cursor-pointer flex items-center justify-center gap-1.5 border ${
               activeView === 'variables'
                 ? 'bg-[#EEF4FF] border-[#0066FF] text-[#0066FF] shadow-2xs'
                 : 'bg-[#F8FAFC] border-[#EAEEF4] text-[#64748B] hover:bg-white hover:text-[#111827]'
             }`}
           >
-            <Sliders className="size-3.5 text-[#0066FF]" />
-            <span className="truncate">API Variables</span>
+            <Sliders className="size-3 text-[#0066FF]" />
+            <span className="truncate">Variables</span>
           </button>
 
           <button
@@ -254,14 +258,30 @@ export const Sidebar = ({
               onNavigate('stats');
               onCloseMobile?.();
             }}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 border ${
+            className={`px-2 py-2 rounded-xl text-[11.5px] font-bold transition cursor-pointer flex items-center justify-center gap-1.5 border ${
               activeView === 'stats'
                 ? 'bg-[#EEF4FF] border-[#0066FF] text-[#0066FF] shadow-2xs'
                 : 'bg-[#F8FAFC] border-[#EAEEF4] text-[#64748B] hover:bg-white hover:text-[#111827]'
             }`}
           >
-            <Activity className="size-3.5 text-[#0066FF]" />
-            <span className="truncate">Global Stats</span>
+            <Activity className="size-3 text-[#0066FF]" />
+            <span className="truncate">Stats</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onNavigate('api-keys');
+              onCloseMobile?.();
+            }}
+            className={`px-2 py-2 rounded-xl text-[11.5px] font-bold transition cursor-pointer flex items-center justify-center gap-1.5 border ${
+              activeView === 'api-keys'
+                ? 'bg-[#EEF4FF] border-[#0066FF] text-[#0066FF] shadow-2xs'
+                : 'bg-[#F8FAFC] border-[#EAEEF4] text-[#64748B] hover:bg-white hover:text-[#111827]'
+            }`}
+          >
+            <KeyRound className="size-3 text-[#0066FF]" />
+            <span className="truncate">API Keys</span>
           </button>
         </div>
 
@@ -525,6 +545,61 @@ export const Sidebar = ({
             </>
           )}
 
+          {/* API Keys Sidebar Section */}
+          {activeView === 'api-keys' && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1 mb-1">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#94A3B8]">
+                  Registered API Keys ({apiKeys.length})
+                </span>
+                <span className="text-[11px] font-mono font-bold text-[#0066FF]">
+                  Live
+                </span>
+              </div>
+
+              {apiKeys.length === 0 ? (
+                <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#EAEEF4] text-center text-xs text-[#64748B]">
+                  No API keys provisioned yet
+                </div>
+              ) : (
+                apiKeys.map((k) => {
+                  const isRevoked = Boolean(k.revoked_at || k.revokedAt);
+                  return (
+                    <div
+                      key={k.id}
+                      onClick={() => onCloseMobile?.()}
+                      className="p-3 rounded-2xl hover:bg-[#F8FAFC] border border-transparent flex items-center justify-between gap-2 cursor-pointer transition"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="size-10 rounded-[12px] bg-gradient-to-tr from-[#38BDF8] to-[#0066FF] flex items-center justify-center text-white shrink-0 shadow-xs">
+                          <KeyRound className="size-4.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[13.5px] font-bold text-[#111827] truncate">
+                            {k.label}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span
+                              className={`size-1.5 rounded-full shrink-0 ${
+                                isRevoked ? 'bg-[#94A3B8]' : 'bg-[#22C55E]'
+                              }`}
+                            />
+                            <span className="text-[11px] font-mono text-[#8E98A8] truncate">
+                              {k.preview}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-[#EEF4FF] text-[#0066FF] shrink-0">
+                        {isRevoked ? 'Revoked' : 'Active'}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
           {/* System Submenu Links */}
           {(activeView === 'mesh' || activeView === 'terminal' || activeView === 'servers' || activeView === 'security') && (
             <div className="space-y-2">
@@ -635,6 +710,30 @@ export const Sidebar = ({
                 </div>
                 <span className="size-5 rounded-full bg-[#0066FF] text-white text-[10px] font-extrabold flex items-center justify-center shrink-0">
                   ∞
+                </span>
+              </div>
+
+              <div
+                onClick={() => {
+                  onNavigate('api-keys');
+                  onCloseMobile?.();
+                }}
+                className="p-3.5 rounded-2xl flex items-center justify-between cursor-pointer transition hover:bg-[#F8FAFC]"
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="size-11 rounded-[14px] bg-gradient-to-b from-[#38BDF8] to-[#0066FF] flex items-center justify-center text-white shrink-0">
+                    <KeyRound className="size-5.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[14.5px] font-bold text-[#111827] truncate">API Keys & SDK</div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="size-2 rounded-full bg-[#22C55E] shrink-0" />
+                      <span className="text-[12px] text-[#8E98A8] truncate">{apiKeys.length} Programmatic Keys</span>
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[11px] font-extrabold text-[#0066FF] bg-[#EEF4FF] px-2 py-0.5 rounded-lg shrink-0">
+                  REST
                 </span>
               </div>
             </div>
