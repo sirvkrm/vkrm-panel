@@ -479,14 +479,15 @@ echo "Response: $response\\n";
         body: endpointInfo.body ? endpointInfo.body : undefined,
       });
 
-      const elapsed = Math.round(performance.now() - start);
+      const rawText = await res.text();
       let data: any = null;
       try {
-        data = await res.json();
+        data = JSON.parse(rawText);
       } catch {
-        data = await res.text();
+        data = rawText;
       }
 
+      const elapsed = Math.round(performance.now() - start);
       setTesterResponse({
         status: res.status,
         timeMs: elapsed,
