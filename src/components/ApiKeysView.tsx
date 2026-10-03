@@ -83,16 +83,17 @@ export function ApiKeysView({
 
   // SDK Customizer state
   const [selectedProjectSlug, setSelectedProjectSlug] = useState<string>(() => {
-    return projects.length > 0 ? projects[0].slug : currentWorkspaceSlug || 'default';
+    return currentWorkspaceSlug || 'default';
   });
   const [selectedApiKeyId, setSelectedApiKeyId] = useState<string>(() => {
     return apiKeys.length > 0 ? apiKeys[0].id : '';
   });
-  const [customBaseUrl, setCustomBaseUrl] = useState<string>(
-    window.location.origin.includes('localhost')
-      ? 'http://45.195.90.57:18080'
-      : window.location.origin
-  );
+  const [customBaseUrl, setCustomBaseUrl] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
+    return 'http://45.195.90.57:18080';
+  });
   const [selectedEndpoint, setSelectedEndpoint] = useState<EndpointKey>('info');
 
   // Interactive Live Tester state
@@ -929,22 +930,26 @@ echo "Response: $response\\n";
                 </select>
               </div>
 
-              {/* 2. Project Selector */}
+              {/* 2. Project / Scope Selector */}
               <div>
                 <label className="block text-[11px] font-extrabold uppercase text-[#8E98A8] mb-1.5">
-                  Target Project
+                  Target Scope / Slug
                 </label>
                 <select
                   value={selectedProjectSlug}
                   onChange={(e) => setSelectedProjectSlug(e.target.value)}
                   className="w-full bg-[#F8FAFC] border border-[#EAEEF4] rounded-xl px-3 py-2 text-xs font-bold text-[#111827] focus:bg-white focus:border-[#0066FF] outline-none transition"
                 >
+                  <option value={currentWorkspaceSlug || 'default'}>
+                    Default Workspace (/{currentWorkspaceSlug || 'default'})
+                  </option>
                   {projects.map((p) => (
-                    <option key={p.slug} value={p.slug}>
-                      {p.name} (/{p.slug})
-                    </option>
+                    p.slug !== (currentWorkspaceSlug || 'default') && (
+                      <option key={p.slug} value={p.slug}>
+                        {p.name} (/{p.slug})
+                      </option>
+                    )
                   ))}
-                  {projects.length === 0 && <option value="default">Default (/default)</option>}
                 </select>
               </div>
 
